@@ -21,7 +21,7 @@ import org.apache.flink.cdc.composer.PipelineComposer;
 import org.apache.flink.cdc.composer.PipelineExecution;
 import org.apache.flink.cdc.composer.definition.PipelineDef;
 
-import org.apache.flink.shaded.guava31.com.google.common.io.Resources;
+import org.apache.flink.shaded.guava30.com.google.common.io.Resources;
 
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;

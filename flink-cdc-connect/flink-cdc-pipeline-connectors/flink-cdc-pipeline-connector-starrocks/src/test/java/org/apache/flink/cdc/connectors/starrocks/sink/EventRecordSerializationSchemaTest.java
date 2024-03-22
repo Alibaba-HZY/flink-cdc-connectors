@@ -339,17 +339,14 @@ public class EventRecordSerializationSchemaTest {
             throw new UnsupportedOperationException();
         }
 
-        @Override
         public boolean isObjectReuseEnabled() {
             throw new UnsupportedOperationException();
         }
 
-        @Override
         public <IN> TypeSerializer<IN> createInputSerializer() {
             throw new UnsupportedOperationException();
         }
 
-        @Override
         public JobID getJobId() {
             throw new UnsupportedOperationException();
         }
