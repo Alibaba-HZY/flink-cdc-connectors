@@ -84,6 +84,9 @@ public class MySqlSplitReader implements SplitReader<SourceRecords, MySqlSplit> 
     public RecordsWithSplitIds<SourceRecords> fetch() throws IOException {
         try {
             suspendBinlogReaderIfNeed();
+            if (currentReader != null) {
+                ((BinlogSplitReader) currentReader).stopBinlogReadTask();
+            }
             return pollSplitRecords();
         } catch (InterruptedException e) {
             LOG.warn("fetch data failed.", e);

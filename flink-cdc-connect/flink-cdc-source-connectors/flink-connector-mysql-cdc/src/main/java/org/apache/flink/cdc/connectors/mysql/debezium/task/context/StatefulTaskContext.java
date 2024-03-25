@@ -28,8 +28,6 @@ import org.apache.flink.cdc.connectors.mysql.source.split.MySqlSplit;
 import com.github.shyiko.mysql.binlog.BinaryLogClient;
 import io.debezium.connector.AbstractSourceInfo;
 import io.debezium.connector.base.ChangeEventQueue;
-import io.debezium.connector.mysql.GtidSet;
-import io.debezium.connector.mysql.GtidUtils;
 import io.debezium.connector.mysql.MySqlChangeEventSourceMetricsFactory;
 import io.debezium.connector.mysql.MySqlConnection;
 import io.debezium.connector.mysql.MySqlConnectorConfig;
@@ -220,57 +218,66 @@ public class StatefulTaskContext {
 
     private boolean checkGtidSet(MySqlOffsetContext offset) {
         String gtidStr = offset.gtidSet();
-
-        if (gtidStr.trim().isEmpty()) {
-            return true; // start at beginning ...
-        }
-
-        String availableGtidStr = connection.knownGtidSet();
-        if (availableGtidStr == null || availableGtidStr.trim().isEmpty()) {
-            // Last offsets had GTIDs but the server does not use them ...
-            LOG.warn(
-                    "Connector used GTIDs previously, but MySQL does not know of any GTIDs or they are not enabled");
-            return false;
-        }
-
-        // Get the GTID set that is available in the server ...
-        GtidSet availableGtidSet = new GtidSet(availableGtidStr);
-
-        // GTIDs are enabled
-        LOG.info("Merging server GTID set {} with restored GTID set {}", availableGtidSet, gtidStr);
-
-        // Based on the current server's GTID, the GTID in MySqlOffsetContext is adjusted to ensure
-        // the completeness of
-        // the GTID. This is done to address the issue of being unable to recover from a checkpoint
-        // in certain startup
-        // modes.
-        GtidSet gtidSet = GtidUtils.fixRestoredGtidSet(availableGtidSet, new GtidSet(gtidStr));
-        LOG.info("Merged GTID set is {}", gtidSet);
-
-        if (gtidSet.isContainedWithin(availableGtidSet)) {
-            LOG.info(
-                    "MySQL current GTID set {} does contain the GTID set {} required by the connector.",
-                    availableGtidSet,
-                    gtidSet);
-            // The replication is concept of mysql master-slave replication protocol ...
-            final GtidSet gtidSetToReplicate =
-                    connection.subtractGtidSet(availableGtidSet, gtidSet);
-            final GtidSet purgedGtidSet = connection.purgedGtidSet();
-            LOG.info("Server has already purged {} GTIDs", purgedGtidSet);
-            final GtidSet nonPurgedGtidSetToReplicate =
-                    connection.subtractGtidSet(gtidSetToReplicate, purgedGtidSet);
-            LOG.info(
-                    "GTID set {} known by the server but not processed yet, for replication are available only GTID set {}",
-                    gtidSetToReplicate,
-                    nonPurgedGtidSetToReplicate);
-            if (!gtidSetToReplicate.equals(nonPurgedGtidSetToReplicate)) {
-                LOG.warn("Some of the GTIDs needed to replicate have been already purged");
-                return false;
-            }
-            return true;
-        }
-        LOG.info("Connector last known GTIDs are {}, but MySQL has {}", gtidSet, availableGtidSet);
-        return false;
+        return true;
+        //        if (gtidStr.trim().isEmpty()) {
+        //            return true; // start at beginning ...
+        //        }
+        //
+        //        String availableGtidStr = connection.knownGtidSet();
+        //        if (availableGtidStr == null || availableGtidStr.trim().isEmpty()) {
+        //            // Last offsets had GTIDs but the server does not use them ...
+        //            LOG.warn(
+        //                    "Connector used GTIDs previously, but MySQL does not know of any GTIDs
+        // or they are not enabled");
+        //            return false;
+        //        }
+        //
+        //        // Get the GTID set that is available in the server ...
+        //        GtidSet availableGtidSet = new GtidSet(availableGtidStr);
+        //
+        //        // GTIDs are enabled
+        //        LOG.info("Merging server GTID set {} with restored GTID set {}", availableGtidSet,
+        // gtidStr);
+        //
+        //        // Based on the current server's GTID, the GTID in MySqlOffsetContext is adjusted
+        // to ensure
+        //        // the completeness of
+        //        // the GTID. This is done to address the issue of being unable to recover from a
+        // checkpoint
+        //        // in certain startup
+        //        // modes.
+        //        GtidSet gtidSet = GtidUtils.fixRestoredGtidSet(availableGtidSet, new
+        // GtidSet(gtidStr));
+        //        LOG.info("Merged GTID set is {}", gtidSet);
+        //
+        //        if (gtidSet.isContainedWithin(availableGtidSet)) {
+        //            LOG.info(
+        //                    "MySQL current GTID set {} does contain the GTID set {} required by
+        // the connector.",
+        //                    availableGtidSet,
+        //                    gtidSet);
+        //            // The replication is concept of mysql master-slave replication protocol ...
+        //            final GtidSet gtidSetToReplicate =
+        //                    connection.subtractGtidSet(availableGtidSet, gtidSet);
+        //            final GtidSet purgedGtidSet = connection.purgedGtidSet();
+        //            LOG.info("Server has already purged {} GTIDs", purgedGtidSet);
+        //            final GtidSet nonPurgedGtidSetToReplicate =
+        //                    connection.subtractGtidSet(gtidSetToReplicate, purgedGtidSet);
+        //            LOG.info(
+        //                    "GTID set {} known by the server but not processed yet, for
+        // replication are available only GTID set {}",
+        //                    gtidSetToReplicate,
+        //                    nonPurgedGtidSetToReplicate);
+        //            if (!gtidSetToReplicate.equals(nonPurgedGtidSetToReplicate)) {
+        //                LOG.warn("Some of the GTIDs needed to replicate have been already
+        // purged");
+        //                return false;
+        //            }
+        //            return true;
+        //        }
+        //        LOG.info("Connector last known GTIDs are {}, but MySQL has {}", gtidSet,
+        // availableGtidSet);
+        //        return false;
     }
 
     private boolean checkBinlogFilename(MySqlOffsetContext offset) {
