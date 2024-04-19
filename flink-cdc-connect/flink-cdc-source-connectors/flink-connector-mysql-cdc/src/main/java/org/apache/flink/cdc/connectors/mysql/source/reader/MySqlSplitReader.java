@@ -113,10 +113,10 @@ public class MySqlSplitReader implements SplitReader<SourceRecords, MySqlSplit> 
                 // the binlog split may come from:
                 // (a) the initial binlog split
                 // (b) added back binlog-split in newly added table process
-                MySqlSplit nextSplit = binlogSplits.poll();
-                currentSplitId = nextSplit.splitId();
-                currentReader = getBinlogSplitReader();
-                currentReader.submitSplit(nextSplit);
+                //                MySqlSplit nextSplit = binlogSplits.poll();
+                //                currentSplitId = nextSplit.splitId();
+                //                currentReader = getBinlogSplitReader();
+                //                currentReader.submitSplit(nextSplit);
             } else if (snapshotSplits.size() > 0) {
                 MySqlSplit nextSplit = snapshotSplits.poll();
                 currentSplitId = nextSplit.splitId();

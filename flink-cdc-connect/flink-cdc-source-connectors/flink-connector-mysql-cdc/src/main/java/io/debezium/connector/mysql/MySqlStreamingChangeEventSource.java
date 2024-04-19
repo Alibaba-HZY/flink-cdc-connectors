@@ -25,7 +25,6 @@ import com.github.shyiko.mysql.binlog.event.deserialization.EventDataDeserializa
 import com.github.shyiko.mysql.binlog.event.deserialization.EventDeserializer;
 import com.github.shyiko.mysql.binlog.event.deserialization.GtidEventDataDeserializer;
 import com.github.shyiko.mysql.binlog.io.ByteArrayInputStream;
-import com.github.shyiko.mysql.binlog.network.AuthenticationException;
 import com.github.shyiko.mysql.binlog.network.DefaultSSLSocketFactory;
 import com.github.shyiko.mysql.binlog.network.SSLMode;
 import com.github.shyiko.mysql.binlog.network.SSLSocketFactory;
@@ -45,7 +44,6 @@ import io.debezium.pipeline.source.spi.StreamingChangeEventSource;
 import io.debezium.relational.TableId;
 import io.debezium.schema.SchemaChangeEvent;
 import io.debezium.util.Clock;
-import io.debezium.util.Metronome;
 import io.debezium.util.Strings;
 import io.debezium.util.Threads;
 import org.slf4j.Logger;
@@ -68,7 +66,6 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.sql.SQLException;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -76,8 +73,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 
@@ -1164,90 +1159,9 @@ public class MySqlStreamingChangeEventSource
         skipEvent = false;
 
         try {
-            // Start the log reader, which starts background threads ...
-            if (context.isRunning()) {
-                long timeout = connectorConfig.getConnectionTimeout().toMillis();
-                long started = clock.currentTimeInMillis();
-                try {
-                    LOGGER.debug(
-                            "Attempting to establish binlog reader connection with timeout of {} ms",
-                            timeout);
-                    client.connect(timeout);
-                    // Need to wait for keepalive thread to be running, otherwise it can be left
-                    // orphaned
-                    // The problem is with timing. When the close is called too early after connect
-                    // then
-                    // the keepalive thread is not terminated
-                    if (client.isKeepAlive()) {
-                        LOGGER.info("Waiting for keepalive thread to start");
-                        final Metronome metronome = Metronome.parker(Duration.ofMillis(100), clock);
-                        int waitAttempts = 50;
-                        boolean keepAliveThreadRunning = false;
-                        while (!keepAliveThreadRunning && waitAttempts-- > 0) {
-                            for (Thread t : binaryLogClientThreads.values()) {
-                                if (t.getName().startsWith(KEEPALIVE_THREAD_NAME) && t.isAlive()) {
-                                    LOGGER.info("Keepalive thread is running");
-                                    keepAliveThreadRunning = true;
-                                }
-                            }
-                            metronome.pause();
-                        }
-                    }
-                } catch (TimeoutException e) {
-                    // If the client thread is interrupted *before* the client could connect, the
-                    // client throws a timeout exception
-                    // The only way we can distinguish this is if we get the timeout exception
-                    // before the specified timeout has
-                    // elapsed, so we simply check this (within 10%) ...
-                    long duration = clock.currentTimeInMillis() - started;
-                    if (duration > (0.9 * timeout)) {
-                        double actualSeconds = TimeUnit.MILLISECONDS.toSeconds(duration);
-                        throw new DebeziumException(
-                                "Timed out after "
-                                        + actualSeconds
-                                        + " seconds while waiting to connect to MySQL at "
-                                        + connectorConfig.hostname()
-                                        + ":"
-                                        + connectorConfig.port()
-                                        + " with user '"
-                                        + connectorConfig.username()
-                                        + "'",
-                                e);
-                    }
-                    // Otherwise, we were told to shutdown, so we don't care about the timeout
-                    // exception
-                } catch (AuthenticationException e) {
-                    throw new DebeziumException(
-                            "Failed to authenticate to the MySQL database at "
-                                    + connectorConfig.hostname()
-                                    + ":"
-                                    + connectorConfig.port()
-                                    + " with user '"
-                                    + connectorConfig.username()
-                                    + "'",
-                            e);
-                } catch (Throwable e) {
-                    throw new DebeziumException(
-                            "Unable to connect to the MySQL database at "
-                                    + connectorConfig.hostname()
-                                    + ":"
-                                    + connectorConfig.port()
-                                    + " with user '"
-                                    + connectorConfig.username()
-                                    + "': "
-                                    + e.getMessage(),
-                            e);
-                }
-            }
-            while (context.isRunning()) {
-                Thread.sleep(100);
-            }
-        } finally {
-            try {
-                client.disconnect();
-            } catch (Exception e) {
-                LOGGER.info("Exception while stopping binary log client", e);
-            }
+            client.disconnect();
+        } catch (Exception e) {
+            LOGGER.info("Exception while stopping binary log client", e);
         }
     }
 

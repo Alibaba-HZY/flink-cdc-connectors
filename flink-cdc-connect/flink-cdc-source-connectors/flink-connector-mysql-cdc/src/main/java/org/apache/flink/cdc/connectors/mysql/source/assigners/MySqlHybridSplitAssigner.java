@@ -113,7 +113,7 @@ public class MySqlHybridSplitAssigner implements MySqlSplitAssigner {
                 // assigning the binlog split. Otherwise, records emitted from binlog split
                 // might be out-of-order in terms of same primary key with snapshot splits.
                 isBinlogSplitAssigned = true;
-                return Optional.of(createBinlogSplit());
+                return Optional.empty();
             } else if (AssignerStatus.isNewlyAddedAssigningFinished(
                     snapshotSplitAssigner.getAssignerStatus())) {
                 // do not need to create binlog, but send event to wake up the binlog reader
